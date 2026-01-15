@@ -492,7 +492,7 @@ void TextStreamFormat::writeBit(StreamSrc* src, const void* data, u32 bits)
     sMutex.lock();
     sTextData = "0b";
 
-    for (s32 i = 0; i < (bits + 7) / 8; i++)
+    for (u32 i = 0; i < (bits + 7) / 8; i++)
     {
         u32 bitsInByte = bits - i * 8;
         if (bitsInByte > 8)
@@ -540,9 +540,9 @@ void TextStreamFormat::writeString(StreamSrc* src, const SafeString& str, u32 si
     src->write(&quotes, 1);
 }
 
-inline u32 toBase64Size(u32 size)
+inline s32 toBase64Size(u32 size)
 {
-    u32 b = size / 3;
+    s32 b = size / 3;
     if (size % 3)
         b++;
     return b * 4;
