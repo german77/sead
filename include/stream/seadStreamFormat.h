@@ -71,7 +71,7 @@ public:
     void writeMemBlock(StreamSrc* src, const void* buffer, u32 size) override;
     void writeDecorationText(StreamSrc* src, const SafeString& text) override;
     void writeNullChar(StreamSrc* src) override;
-    void skip(StreamSrc* src, u32 value) override;
+    void skip(StreamSrc* src, u32 offset) override;
     void flush(StreamSrc* src) override;
     void rewind(StreamSrc* src) override;
 };
@@ -79,6 +79,8 @@ public:
 class TextStreamFormat : public StreamFormat
 {
 public:
+    TextStreamFormat();
+
     u8 readU8(StreamSrc* src, Endian::Types endian) override;
     u16 readU16(StreamSrc* src, Endian::Types endian) override;
     u32 readU32(StreamSrc* src, Endian::Types endian) override;
@@ -105,9 +107,13 @@ public:
     void writeMemBlock(StreamSrc* src, const void* buffer, u32 size) override;
     void writeDecorationText(StreamSrc* src, const SafeString& text) override;
     void writeNullChar(StreamSrc* src) override;
-    void skip(StreamSrc* src, u32 value) override;
+    void skip(StreamSrc* src, u32 offset) override;
     void flush(StreamSrc* src) override;
     void rewind(StreamSrc* src) override;
+private:
+    void getNextData_(sead::StreamSrc* src);
+
+    FixedSafeString<128> mEntryTerminator;
 };
 
 }  // namespace sead
