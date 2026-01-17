@@ -396,6 +396,7 @@ u32 TextStreamFormat::readMemBlock(StreamSrc* src, void* buffer, u32 size)
     sMutex.unlock();
     return readSize;
 }
+
 void TextStreamFormat::writeU8(StreamSrc* src, [[maybe_unused]] Endian::Types endian, u8 value)
 {
     sead::FixedSafeString<32> tmp;
@@ -507,7 +508,7 @@ void TextStreamFormat::writeBit(StreamSrc* src, const void* data, u32 bits)
         }
     }
 
-    src->write(sTextData.cstr(), bits + 2); // 0b + bits
+    src->write(sTextData.cstr(), bits + 2);  // 0b + bits
     src->write(mEntryTerminator.cstr(), 1);
     sMutex.unlock();
 }
@@ -594,5 +595,117 @@ void TextStreamFormat::flush([[maybe_unused]] StreamSrc* src) {}
 void TextStreamFormat::rewind(StreamSrc* src)
 {
     src->rewind();
+}
+
+void TextStreamFormat::getNextData_(sead::StreamSrc* src)
+{
+    char cVar8;
+    char value;
+
+    sTextData.clear();
+    if (src->read(&value, 1) == 0)
+        return;
+
+    bool inQuotes = false;
+    char endChar = '\0';
+    s32 inToken = 0;
+    do
+    {
+        if (endChar != '\0')
+        {
+            if (value != endChar)
+            {
+                if (endChar == '/')
+                    endChar = '*';
+                continue;
+            }
+
+            if (endChar == '*')
+            {
+                endChar = '/';
+                continue;
+            }
+
+            value = mEntryTerminator[0];
+        }
+
+        endChar = value;
+        if (inQuotes)
+        {
+            if (value == '\"')
+            {
+                if (inToken < 2 || sTextData[inToken - 1] != '\\')
+                {
+                    return;
+                }
+
+                sTextData.append("\"", 1);
+                inQuotes = true;
+                inToken--;
+                endChar = '\0';
+                continue;
+            }
+
+            sTextData.append(value);
+            inQuotes = true;
+            inToken++;
+            endChar = '\0';
+            continue;
+        }
+
+        if (inToken == 0 && value == '\"')
+        {
+            inQuotes = true;
+            endChar = '\0';
+            continue;
+        }
+
+        if (mEntryTerminator.include(value) || value == '\0')
+        {
+            if (!sTextData.isEmpty())
+            {
+                return;
+            }
+            inQuotes = false;
+            endChar = '\0';
+            continue;
+        }
+
+        sTextData.append(value);
+        if (inToken + 1 > 0 && sTextData[inToken] == '#')
+        {
+            sTextData.trim(inToken - 1);
+            cVar8 = '\n';
+        }
+        else
+        {
+            cVar8 = '\0';
+            inToken++;
+        }
+
+        if (inToken > 1 && sTextData[inToken - 2] == '/')
+        {
+            if (sTextData[inToken - 1] == '/')
+            {
+                sTextData.trim(inToken - 2);
+                inQuotes = false;
+                inToken -= 2;
+                endChar = '\n';
+                continue;
+            }
+
+            if (sTextData[inToken - 1] == '*')
+            {
+                sTextData.trim(inToken - 2);
+                inQuotes = false;
+                inToken -= 2;
+                endChar = '*';
+                continue;
+            }
+        }
+        inQuotes = false;
+        endChar = cVar8;
+
+    } while (src->read(&value, 1) != 0);
 }
 }  // namespace sead
