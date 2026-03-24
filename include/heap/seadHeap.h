@@ -79,9 +79,12 @@ public:
 
     virtual void pushBackChild_(Heap* child);
 
+    void dispose_(void const*, void const*);
     void appendDisposer_(IDisposer* disposer);
     void removeDisposer_(IDisposer* disposer);
     Heap* findContainHeap_(const void* ptr);
+
+    void destruct_();
 
     void* alloc(size_t size, s32 alignment = sizeof(void*))
     {
@@ -98,6 +101,7 @@ public:
     void enableDebugFillUser(bool on) { mFlag.changeBit(Flag::cEnableDebugFillUser, on); }
 
     bool isLockEnabled() const { return mFlag.isOnBit(Flag::cEnableLock); }
+    bool isDisposing() const { return mFlag.isOnBit(Flag::cDisposing); }
     bool isWarningEnabled() const { return mFlag.isOnBit(Flag::cEnableWarning); }
     bool isDebugFillSystemEnabled() const { return mFlag.isOnBit(Flag::cEnableDebugFillSystem); }
     bool isDebugFillUserEnabled() const { return mFlag.isOnBit(Flag::cEnableDebugFillUser); }
@@ -122,7 +126,7 @@ public:
 #endif
 };
 
-inline void* Heap::tryRealloc(void*, size_t, s32)
+inline void* Heap::tryRealloc(void* ptr, size_t size, s32 alignment)
 {
     SEAD_ASSERT_MSG(false, "tryRealloc is not implement.");
     return nullptr;

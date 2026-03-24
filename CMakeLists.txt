@@ -125,11 +125,13 @@ add_library(sead OBJECT
   include/heap/seadHeap.h
   include/heap/seadHeapMgr.h
   include/heap/seadMemBlock.h
+  include/heap/seadUnitHeap.h
   modules/src/heap/seadArena.cpp
   modules/src/heap/seadDisposer.cpp
   modules/src/heap/seadExpHeap.cpp
   modules/src/heap/seadHeap.cpp
   modules/src/heap/seadHeapMgr.cpp
+  modules/src/heap/seadUnitHeap.cpp
 
   include/math/seadBoundBox.h
   include/math/seadBoundBox.hpp
