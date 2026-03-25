@@ -15,11 +15,6 @@ namespace hostio
 class Context;
 }  // namespace hostio
 
-struct UnitHeapBlock
-{
-    UnitHeapBlock* next;
-};
-
 class UnitHeap : public Heap
 {
     SEAD_RTTI_OVERRIDE(UnitHeap, Heap)
@@ -60,8 +55,8 @@ private:
     void genInformation_(hostio::Context*) override;
 
     u32 mBlockSize;
-    UnitHeapBlock* mBlocks = nullptr;
-    size_t mBlocksSize = 0;
+    void* mAreaStart = nullptr;
+    size_t mAreaSize = 0;
     size_t mFreeSize = 0;
     FreeList mFreeList;
 };

@@ -2,6 +2,7 @@
 
 #include <heap/seadHeapMgr.h>
 #include <prim/seadScopedLock.h>
+#include <stream/seadStream.h>
 
 namespace sead
 {
@@ -111,11 +112,11 @@ void UnitHeap::freeAll()
     Heap::dispose_(nullptr, nullptr);
 
     u32 blockSize = mBlockSize;
-    u32 elements = getElements(mBlocksSize, mBlockSize);
-    size_t blockSized = (s32)mBlockSize < 0 ? mBlockSize + 7 : mBlockSize;
+    u32 elements = getElements(mAreaSize, blockSize);
+    size_t blockSized = (s32)mBlockSize < 0 ? blockSize + 7 : blockSize;
 
     mFreeSize = elements * blockSize;
-    mFreeList.setWork(mBlocks, blockSized, elements);
+    mFreeList.setWork(mAreaStart, blockSized, elements);
 }
 
 uintptr_t UnitHeap::getStartAddress() const
@@ -147,12 +148,12 @@ size_t UnitHeap::getMaxAllocatableSize(int alignment) const
 
 bool UnitHeap::isInclude(const void* ptr) const
 {
-    return PtrUtil::isInclude(ptr, mBlocks, PtrUtil::addOffset(mBlocks, mBlocksSize));
+    return PtrUtil::isInclude(ptr, mAreaStart, PtrUtil::addOffset(mAreaStart, mAreaSize));
 }
 
 bool UnitHeap::isEmpty() const
 {
-    return mFreeSize == getElements(mBlocksSize, mBlockSize) * mBlockSize;
+    return mFreeSize == getElements(mAreaSize, mBlockSize) * mBlockSize;
 }
 
 bool UnitHeap::isFreeable() const
@@ -177,7 +178,29 @@ void UnitHeap::dump() const
     Heap::dump();
 }
 
-void UnitHeap::dumpYAML(WriteStream& stream, s32) const {}
+void UnitHeap::dumpYAML(WriteStream& stream, s32 index) const {
+    ConditionalScopedLock<CriticalSection> lock(const_cast<CriticalSection*>(&mCS),
+                                                isLockEnabled());
+
+    Heap::dumpYAML(stream, index);
+    sead::FixedSafeString<128> str;
+
+    str.appendWithFormat("  heap_type: UnitHeap\n");
+    stream.writeDecorationText(str);
+    str.clear();
+
+    if(index < 1){
+        str.appendWithFormat("  block_size: %llu\n", mBlockSize);
+        stream.writeDecorationText(str);
+        str.clear();
+    }
+
+    str.appendWithFormat("  area_start: %llu\n", mAreaStart);
+    stream.writeDecorationText(str);
+
+    str.appendWithFormat("  area_size: %llu\n", mAreaSize);
+    stream.writeDecorationText(str);
+}
 
 void UnitHeap::doCreate(s32 alignment, bool isNan, sead::Heap* parent)
 {
@@ -194,18 +217,16 @@ void UnitHeap::doCreate(s32 alignment, bool isNan, sead::Heap* parent)
         aligned_ptr += u_alignment;
 
     mBlockSize = (mBlockSize + u_alignment - 1) & -u_alignment;
-    size_t suzer = mBlockSize + 7;
-    if (true)
-    {
-        suzer = mBlockSize;
-    }
 
-    mBlocks = reinterpret_cast<UnitHeapBlock*>(aligned_ptr);
-    mBlocksSize = (uintptr_t)this + mSize - (uintptr_t)mBlocks;
+    mAreaStart = reinterpret_cast<void*>(aligned_ptr);
+    mAreaSize = (uintptr_t)this + mSize - (uintptr_t)mAreaStart;
 
-    u32 num = mBlocksSize / mBlockSize;
-    mFreeSize = mBlockSize * num;
-    mFreeList.setWork(mBlocks, suzer, num);
+    u32 blockSize = mBlockSize;
+    u32 elements = getElements(mAreaSize, blockSize);
+    size_t blockSized = (s32)mBlockSize < 0 ? blockSize + 7 : blockSize;
+
+    mFreeSize = elements * blockSize;
+    mFreeList.setWork(mAreaStart, blockSized, elements);
 
     parent->pushBackChild_(this);
 }
@@ -243,6 +264,8 @@ size_t UnitHeap::getManagementAreaSize(s32 size)
     return size + sizeof(UnitHeap);
 }
 
-void UnitHeap::genInformation_(hostio::Context*) {}
+void UnitHeap::genInformation_(hostio::Context* context) {
+    Heap::genInformation_(context);
+}
 
 }  // namespace sead
