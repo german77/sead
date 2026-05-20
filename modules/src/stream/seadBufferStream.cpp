@@ -5,7 +5,7 @@
 namespace sead
 {
 BufferReadStreamSrc::BufferReadStreamSrc(StreamSrc* src, void* buffer, u32 buffer_size)
-    : mSrc(src), mBuffer(buffer), mBufferSize(buffer_size)
+    : mSrc(src), mBuffer((u8*)buffer), mBufferSize(buffer_size)
 {
 }
 
@@ -21,7 +21,7 @@ u32 BufferReadStreamSrc::read(void* data, u32 size)
         {
             u32 readSize = sead::Mathu::clampMax(size - totalBytesRead, mCurrentSize - mCurrentPos);
 
-            memcpy((u8*)data + totalBytesRead, (u8*)mBuffer + mCurrentPos, readSize);
+            MemUtil::copy((u8*)data + totalBytesRead, mBuffer + mCurrentPos, readSize);
             totalBytesRead += readSize;
             mCurrentPos += readSize;
         }
@@ -84,7 +84,7 @@ BufferReadStream::~BufferReadStream()
 }
 
 BufferWriteStreamSrc::BufferWriteStreamSrc(StreamSrc* src, void* buffer, u32 buffer_size)
-    : mSrc(src), mBuffer(buffer), mBufferSize(buffer_size)
+    : mSrc(src), mBuffer((u8*)buffer), mBufferSize(buffer_size)
 {
 }
 
@@ -105,7 +105,7 @@ u32 BufferWriteStreamSrc::write(const void* data, u32 size)
 
         u32 writeSize = sead::Mathu::min(mBufferSize - mCurrentPos, size - totalBytesWritten);
 
-        memcpy((u8*)mBuffer + mCurrentPos, (u8*)data + totalBytesWritten, writeSize);
+        MemUtil::copy(mBuffer + mCurrentPos, (u8*)data + totalBytesWritten, writeSize);
         totalBytesWritten += writeSize;
         mCurrentPos += writeSize;
     } while (totalBytesWritten < size && flush());
@@ -143,6 +143,104 @@ BufferWriteStream::BufferWriteStream(WriteStream* stream, void* buffer, u32 buff
 }
 
 BufferWriteStream::~BufferWriteStream()
+{
+    flush();
+    setSrc(nullptr);
+}
+
+BufferMultiByteTextWriteStreamSrc::BufferMultiByteTextWriteStreamSrc(StreamSrc* src, void* buffer,
+                                                                     u32 buffer_size)
+    : BufferWriteStreamSrc(src, buffer, buffer_size)
+{
+}
+
+u32 getWideCharLength(u8 b)
+{
+    if ((b & 0xE0) == 0xC0)
+        return 2;
+    if ((b & 0xF0) == 0xE0)
+        return 3;
+    if ((b & 0xF8) == 0xF0)
+        return 4;
+    return 0;
+}
+
+u32 BufferMultiByteTextWriteStreamSrc::write(const void* data, u32 size)
+{
+    const u8* pData = static_cast<const u8*>(data);
+    u32 totalBytesWritten = 0;
+
+    do
+    {
+        if (mCurrentPos >= mBufferSize)
+            continue;
+
+        u32 available = mBufferSize - mCurrentPos;
+        u32 remaining = size - totalBytesWritten;
+        u32 writeSize = available;
+
+        if (available < remaining)
+        {
+            u8 lastByte = pData[totalBytesWritten + available - 1];
+
+            if ((lastByte & 0x80) != 0)
+            {
+                s32 backtrack = 0;
+                if ((lastByte & 0xC0) != 0x80)
+                {
+                    backtrack = 1;
+                }
+                else
+                {
+                    s32 searchLimit = sead::Mathi::min(available, 4);
+                    for (s32 i = 1; i < searchLimit; ++i)
+                    {
+                        u8 b = pData[totalBytesWritten + available - 1 - i];
+                        if ((b & 0xC0) != 0x80)
+                        {
+                            u32 expectedLen = getWideCharLength(b);
+                            if (i + 1 < expectedLen)
+                                backtrack = i + 1;
+                            break;
+                        }
+                    }
+                }
+                if (backtrack != 0)
+                {
+                    mBuffer[mBufferSize - backtrack] = 0;
+                    writeSize = available - backtrack;
+                }
+            }
+        }
+        else
+        {
+            writeSize = remaining;
+        }
+
+        MemUtil::copy(mBuffer + mCurrentPos, pData + totalBytesWritten, writeSize);
+        totalBytesWritten += writeSize;
+        mCurrentPos += writeSize;
+    } while (totalBytesWritten < size && flush());
+
+    return totalBytesWritten;
+}
+
+bool BufferMultiByteNullTerminatedTextWriteStreamSrc::flush()
+{
+    mBuffer[mCurrentPos] = 0;
+    return BufferWriteStreamSrc::flush();
+}
+
+BufferMultiByteTextWriteStream::BufferMultiByteTextWriteStream(WriteStream* stream, void* buffer,
+                                                               u32 buffer_size)
+    : mSrc(stream->getSrc(), buffer, buffer_size)
+{
+    setSrc(&mSrc);
+    setUserFormat(stream->getUserFormat());
+    setBinaryEndian(stream->getBinaryEndian());
+}
+
+BufferMultiByteTextWriteStream::~BufferMultiByteTextWriteStream()
 {
     flush();
     setSrc(nullptr);

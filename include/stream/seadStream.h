@@ -107,4 +107,5 @@ private:
     void writeF32BitImpl_(f32 value, u32 integerBits, u32 fractionalBits);
     void writeF64BitImpl_(f64 value, u32 integerBits, u32 fractionalBits);
 };
+
 }  // namespace sead

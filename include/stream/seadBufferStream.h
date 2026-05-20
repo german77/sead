@@ -19,7 +19,7 @@ public:
 
 private:
     StreamSrc* mSrc;
-    void* mBuffer;
+    u8* mBuffer;
     u32 mBufferSize;
     u32 mCurrentSize = 0;
     u32 mCurrentPos = 0;
@@ -48,9 +48,9 @@ public:
     bool isEOF() override { return mSrc->isEOF(); }
     bool flush() override;
 
-private:
+protected:
     StreamSrc* mSrc;
-    void* mBuffer;
+    u8* mBuffer;
     u32 mBufferSize = 0;
     u32 mCurrentPos = 0;
 };
@@ -86,6 +86,10 @@ private:
 class BufferMultiByteNullTerminatedTextWriteStreamSrc : public BufferMultiByteTextWriteStreamSrc
 {
 public:
+    BufferMultiByteNullTerminatedTextWriteStreamSrc(StreamSrc* src, void* buffer, u32 buffer_size)
+        : BufferMultiByteTextWriteStreamSrc(src, buffer, buffer_size)
+    {
+    }
     ~BufferMultiByteNullTerminatedTextWriteStreamSrc() override = default;
     bool flush() override;
 };
