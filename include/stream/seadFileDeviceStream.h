@@ -13,7 +13,7 @@ class FileDeviceStreamSrc : public StreamSrc
 public:
     FileDeviceStreamSrc();
     FileDeviceStreamSrc(FileHandle* fileHandle);
-    ~FileDeviceStreamSrc() override;
+    virtual ~FileDeviceStreamSrc();
 
     u32 read(void* buffer, u32 size) override;
     u32 write(const void* buffer, u32 size) override;

@@ -9,7 +9,7 @@ class RamStreamSrc : public StreamSrc
 {
 public:
     RamStreamSrc(void* buffer, u32 bufferSize);
-    ~RamStreamSrc() override;
+    virtual ~RamStreamSrc();
 
     u32 read(void* data, u32 size) override;
     u32 write(const void* data, u32 size) override;

@@ -15,6 +15,12 @@ StreamFormat* Stream::BASIC_STREAM_FORMAT[2]{
 
 Stream::Stream() = default;
 
+Stream::Stream(StreamSrc* src, Modes mode) : mSrc(src)
+{
+    mFormat = nullptr;
+    setMode(mode);
+}
+
 Stream::Stream(StreamSrc* src, StreamFormat* format)
 {
     mSrc = src;

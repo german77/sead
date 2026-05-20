@@ -13,7 +13,5 @@ public:
     virtual void rewind() = 0;
     virtual bool isEOF() = 0;
     virtual bool flush() { return true; }
-
-    virtual ~StreamSrc() = default;
 };
 }  // namespace sead
